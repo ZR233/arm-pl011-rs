@@ -5,7 +5,8 @@ description = "PL011 UART driver"
 keywords = ["pl011", "no-std", "embedded-hal", "async"]
 license = "MIT OR Apache-2.0"
 categories = ["no-std", "embedded", "asynchronous", "hardware-support"]
-version = "0.1.0"
+repository = "https://gitee.com/zr233/arm-pl011-rs"
+version = "0.1.1"
 edition = "2021"
 
 [dependencies]

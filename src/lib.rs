@@ -1,5 +1,4 @@
-//! Arm PL011 UART Driver.
-//!
+#![doc = include_str!("../README.md")]
 
 #![no_std]
 
