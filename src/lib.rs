@@ -1,5 +1,4 @@
 #![doc = include_str!("../README.md")]
-
 #![no_std]
 
 use core::{
@@ -147,7 +146,7 @@ pub enum StopBits {
 
 pub struct Config {
     pub baud_rate: u32,
-    pub clock_freq: u32,
+    pub clock_freq: u64,
     pub data_bits: DataBits,
     pub stop_bits: StopBits,
     pub parity: Parity,
@@ -170,16 +169,18 @@ impl Pl011 {
         spin_on(Self::new(base, config))
     }
 
+    async fn flush_all(&mut self) {
+        self.wait_expect(|reg| reg.fr.matches_all(Fr::TX_FIFO_EMPTY::SET + Fr::BUSY::CLEAR))
+            .await;
+    }
+
     pub async fn set_config(&mut self, config: Option<Config>) {
+        self.flush_all().await;
+
         // 1. Disable the UART.
-        self.reg().cr.write(ControlRegister::ENABLE::CLEAR);
+        self.reg().cr.modify(ControlRegister::ENABLE::CLEAR);
 
         // 2. Wait for the end of transmission or reception of the current character.
-        self.wait_expect(|reg| {
-            reg.fr
-                .matches_all(Fr::RX_FIFO_EMPTY::SET + Fr::TX_FIFO_EMPTY::SET)
-        })
-        .await;
 
         // 3. Flush the transmit FIFO by setting the FEN bit to 0 in the Line Control Register, UARTLCR_H.
         self.reg()
@@ -216,7 +217,7 @@ impl Pl011 {
                 StopBits::STOP2 => LineControlRegister::TWO_STOP_BITS_SELECT::SET,
             };
 
-            let baud_rate_div = (8 * config.clock_freq) / config.baud_rate;
+            let baud_rate_div = (8 * config.clock_freq) / config.baud_rate as u64;
             let mut baud_ibrd = baud_rate_div >> 7;
             let mut baud_fbrd = ((baud_rate_div & 0x7f) + 1) / 2;
 
@@ -228,8 +229,8 @@ impl Pl011 {
                 baud_fbrd = 0;
             }
 
-            self.reg().ibrd.set(baud_ibrd);
-            self.reg().fbrd.set(baud_fbrd);
+            self.reg().ibrd.set(baud_ibrd as u32);
+            self.reg().fbrd.set(baud_fbrd as u32);
 
             self.reg()
                 .lcr_h
