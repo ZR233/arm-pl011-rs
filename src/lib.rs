@@ -7,13 +7,11 @@ use core::{
     sync::atomic::{fence, Ordering},
 };
 
+use bitflags::bitflags;
 use embedded_io::ErrorType;
 use spin_on::spin_on;
 use tock_registers::{
-    fields::FieldValue,
-    interfaces::{ReadWriteable, Readable, Writeable},
-    register_bitfields, register_structs,
-    registers::{ReadOnly, ReadWrite, WriteOnly},
+    fields::FieldValue, interfaces::*, register_bitfields, register_structs, registers::*,
 };
 
 #[derive(Debug)]
@@ -78,7 +76,11 @@ register_bitfields! [
         OUT2 OFFSET(13) NUMBITS(1) [],
         RTS_ENABLE OFFSET(14) NUMBITS(1) [],
         CTS_ENABLE OFFSET(15) NUMBITS(1) [],
-    ]
+    ],
+    IFLS [
+        TXIFLSEL OFFSET(0) NUMBITS(2) [],
+        RXIFLSEL OFFSET(3) NUMBITS(2) [],
+    ],
 ];
 
 register_structs! {
@@ -94,7 +96,7 @@ register_structs! {
         /// Control register.
         (0x30 => cr: ReadWrite<u32, ControlRegister::Register>),
         /// Interrupt FIFO Level Select Register.
-        (0x34 => ifls: ReadWrite<u32>),
+        (0x34 => ifls: ReadWrite<u32, IFLS::Register>),
         /// Interrupt Mask Set Clear Register.
         (0x38 => imsc: ReadWrite<u32>),
         /// Raw Interrupt Status Register.
@@ -295,6 +297,111 @@ impl Pl011 {
         }
         .await;
     }
+
+    pub fn set_tx_fifo_threadhold(&mut self, threshold: Threshold) {
+        self.reg().ifls.modify(IFLS::TXIFLSEL.val(threshold as _));
+    }
+
+    pub fn set_rx_fifo_threadhold(&mut self, threshold: Threshold) {
+        self.reg().ifls.modify(IFLS::RXIFLSEL.val(threshold as _));
+    }
+
+    pub fn write_imsc(&mut self, mask: IMSC) {
+        self.reg().imsc.set(mask.bits());
+    }
+
+    pub fn read_ris(&self) -> RIS {
+        RIS::from_bits_truncate(self.reg().ris.get())
+    }
+    pub fn read_mis(&self) -> MIS {
+        MIS::from_bits_truncate(self.reg().mis.get())
+    }
+
+    pub fn write_icr(&mut self, mask: RIS) {
+        self.reg().icr.set(mask.bits());
+    }
+}
+
+bitflags! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct IMSC: u32 {
+        /// nUARTRI 调制解调中断屏蔽
+        const RIMIM = 1 << 0;
+        /// nUARTCTS 调制解调中断屏蔽
+        const CTSMIM = 1 << 1;
+        /// nUARTDCD 调制解调中断屏蔽
+        const CDCDMIM = 1 << 2;
+        const DSRMIM = 1 << 3;
+        /// 接收中断屏蔽
+        const RXIM = 1 << 4;
+        /// 发送中断屏蔽
+        const TXIM = 1 << 5;
+        /// 接收超时中断屏蔽
+        const RTIM = 1 << 6;
+        const FEIM = 1 << 7;
+        const PEIM = 1 << 8;
+        const BEIM = 1 << 9;
+        const OEIM = 1 << 10;
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct RIS: u32 {
+        const RIRMIS = 1 << 0;
+        const CTSRMIS = 1 << 1;
+        const DCDRMIS = 1 << 2;
+        const DSRRMIS = 1 << 3;
+        const RXRIS = 1 << 4;
+        const TXRIS = 1 << 5;
+        const RTRIS = 1 << 6;
+        const FERIS = 1 << 7;
+        const PERIS = 1 << 8;
+        const BERIS = 1 << 9;
+        const OERIS = 1 << 10;
+    }
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct MIS: u32 {
+        const RIMMIS = 1 << 0;
+        const CTSMMIS = 1 << 1;
+        const DCDMMIS = 1 << 2;
+        const DSRMMIS = 1 << 3;
+        const RXMIS = 1 << 4;
+        const TXMIS = 1 << 5;
+        const RTMIS = 1 << 6;
+        const FEMIS = 1 << 7;
+        const PEMIS = 1 << 8;
+        const BEMIS = 1 << 9;
+        const OEMIS = 1 << 10;
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct ICR: u32 {
+        const RIMIC = 1 << 0;
+        const CTSMIC = 1 << 1;
+        const DCDMIC = 1 << 2;
+        const DSRMIC = 1 << 3;
+        const RXIC = 1 << 4;
+        const TXIC = 1 << 5;
+        const RTIC = 1 << 6;
+        const FEIC = 1 << 7;
+        const PEIC = 1 << 8;
+        const BEIC = 1 << 9;
+        const OEIC = 1 << 10;
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Threshold {
+    /// FIFO ≤ 1/8 full
+    Level1 = 000,
+    /// FIFO ≤ 1/4 full
+    Level2 = 0b001,
+    /// FIFO ≤ 1/2 full
+    Level3 = 0b010,
+    /// FIFO ≤ 3/4 full
+    Level4 = 0b011,
+    /// FIFO ≤ 7/8 full
+    Level5 = 0b100,
 }
 
 struct WaitExpectFuture<F>
