@@ -9,6 +9,9 @@ repository = "https://gitee.com/zr233/arm-pl011-rs"
 version = "0.1.1"
 edition = "2021"
 
+[lib]
+doctest = false
+
 [dependencies]
 tock-registers = "0.8"
 embedded-io = "0.6"

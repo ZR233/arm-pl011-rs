@@ -1,0 +1,12 @@
+{
+  "name": "arm-pl011-rs",
+  "description": "This is a driver for arm pl011 uart. support async and sync io.",
+  "authors": [{
+    "name": "周睿",
+    "email": "zrufo747@outlook.com"
+  }],
+  "keywords": ["uart", "pl011"],
+  "test_repos": [],
+  "repo": "ZR233/arm-pl011-rs",
+  "doc_url": "https://docs.rs/arm-pl011-rs/latest/arm_pl011_rs"
+}

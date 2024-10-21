@@ -1,6 +1,5 @@
-#![doc = include_str!("../README.md")]
-
 #![no_std]
+#![doc = include_str!("../README.md")]
 
 use core::{
     future::Future,
