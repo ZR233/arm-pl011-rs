@@ -1,0 +1,4 @@
+serial = "COM3"
+baud_rate = 115200
+net = "以太网"
+dtb_file = 'C:\Users\zrufo\Documents\phytium\phytium.dtb'

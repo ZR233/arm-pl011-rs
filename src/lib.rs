@@ -4,7 +4,7 @@
 use core::{
     future::Future,
     ptr::NonNull,
-    sync::atomic::{fence, Ordering},
+    sync::atomic::{Ordering, fence},
 };
 
 use bitflags::bitflags;
@@ -81,6 +81,7 @@ register_bitfields! [
         TXIFLSEL OFFSET(0) NUMBITS(2) [],
         RXIFLSEL OFFSET(3) NUMBITS(2) [],
     ],
+
 ];
 
 register_structs! {
@@ -280,6 +281,10 @@ impl Pl011 {
         self.wait_expect(|reg| reg.fr.read(Fr::TX_FIFO_FULL) == 0)
             .await;
 
+        self.reg().dr.write(Data::DATA.val(data as u32));
+    }
+
+    pub fn data_write(&self, data: u8) {
         self.reg().dr.write(Data::DATA.val(data as u32));
     }
 
